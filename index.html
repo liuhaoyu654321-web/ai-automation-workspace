@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI 自动化工作台</title>
+
+  <style>
+    body {
+      font-family: Arial, "Microsoft YaHei", sans-serif;
+      background: #f3f4f6;
+      margin: 0;
+      padding: 40px;
+      color: #111827;
+    }
+
+    .container {
+      max-width: 1180px;
+      margin: 0 auto;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, #111827, #1f2937);
+      color: white;
+      padding: 40px;
+      border-radius: 24px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16);
+      margin-bottom: 32px;
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-size: 40px;
+      letter-spacing: -1px;
+    }
+
+    .hero p {
+      margin-top: 16px;
+      max-width: 780px;
+      line-height: 1.8;
+      color: #d1d5db;
+      font-size: 17px;
+    }
+
+    .hero-meta {
+      margin-top: 24px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .tag {
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+      color: #f9fafb;
+      font-size: 14px;
+    }
+
+    .section-title {
+      margin: 32px 0 16px;
+      font-size: 24px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 20px;
+      padding: 24px;
+      border: 1px solid #e5e7eb;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 14px 30px rgba(0, 0, 0, 0.1);
+    }
+
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      background: #111827;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+
+    .status {
+      font-size: 13px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #dcfce7;
+      color: #166534;
+      white-space: nowrap;
+    }
+
+    .card h2 {
+      margin: 18px 0 10px;
+      font-size: 21px;
+    }
+
+    .desc {
+      color: #4b5563;
+      line-height: 1.7;
+      min-height: 76px;
+    }
+
+    .scene {
+      margin-top: 14px;
+      color: #6b7280;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .btn {
+      display: inline-block;
+      margin-top: 18px;
+      padding: 11px 16px;
+      border-radius: 10px;
+      background: #111827;
+      color: white;
+      text-decoration: none;
+      font-size: 15px;
+    }
+
+    .btn:hover {
+      background: #374151;
+    }
+    .card-meta {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.card-meta span {
+  font-size: 13px;
+  color: #374151;
+  background: #f3f4f6;
+  padding: 6px 9px;
+  border-radius: 999px;
+}
+
+    .footer {
+      margin-top: 36px;
+      padding: 24px;
+      text-align: center;
+      color: #6b7280;
+      font-size: 14px;
+    }
+
+    @media (max-width: 960px) {
+      .grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 20px;
+      }
+
+      .hero {
+        padding: 28px;
+      }
+
+      .hero h1 {
+        font-size: 32px;
+      }
+
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <section class="hero">
+      <h1>AI 自动化工作台</h1>
+      <p>
+        这是一个本地 AI 自动化工具入口，集成了文本总结、自媒体内容生成、学习复盘、客户评论分析、资料总结、PDF 总结和表格数据分析等工具。
+        每个工具背后都连接了独立的 n8n workflow，用来完成输入校验、AI 处理、错误兜底和网页返回。
+      </p>
+
+      <div class="hero-meta">
+        <span class="tag">HTML + n8n + AI</span>
+        <span class="tag">本地学习项目</span>
+        <span class="tag">7 个工具入口</span>
+        <span class="tag">v1.0</span>
+      </div>
+    </section>
+
+    <h2 class="section-title">工具列表</h2>
+
+    <div class="grid">
+      <div class="card">
+        <div class="card-top">
+          <div class="icon">📄</div>
+          <span class="status">可优化</span>
+        </div>
+        <h2>AI 长文本总结器</h2>
+        <div class="desc">
+          输入一段长文本，自动分块总结，再合并成最终总结结果。
+        </div>
+        <div class="scene">
+          适合：长文章、课程笔记、会议记录、学习资料。
+        </div>
+        <div class="card-meta">
+          <span>版本：v1.0</span>
+          <span>类型：文本工具</span>
+        </div>
+        <a class="btn" href="long_summary_style_form.html">进入工具</a>
+      </div>
+
+      <div class="card">
+        <div class="card-top">
+          <div class="icon">🎬</div>
+          <span class="status">已完成</span>
+        </div>
+        <h2>AI 自媒体内容助手</h2>
+        <div class="desc">
+          根据输入内容生成小红书笔记、抖音口播稿或标题文案。
+        </div>
+        <div class="scene">
+          适合：内容创作、学习记录、视频脚本、图文文案。
+        </div>
+        <div class="card-meta">
+          <span>版本：v1.0</span>
+          <span>类型：内容工具</span>
+        </div>
+        <a class="btn" href="social_content_form.html">进入工具</a>
+      </div>
+
+      <div class="card">
+        <div class="card-top">
+          <div class="icon">🧠</div>
+          <span class="status">已完成</span>
+        </div>
+        <h2>AI 学习复盘助手</h2>
+        <div class="desc">
+          输入学习记录，自动整理今日重点、遇到的问题、经验和下一步计划。
+        </div>
+        <div class="scene">
+          适合：每日学习复盘、项目总结、Notion 学习日志。
+        </div>
+        <div class="card-meta">
+          <span>版本：v1.0</span>
+          <span>类型：学习工具</span>
+        </div>
+        <a class="btn" href="study_review_form.html">进入工具</a>
+      </div>
+
+      <div class="card">
+        <div class="card-top">
+          <div class="icon">💬</div>
+          <span class="status">已完成</span>
+        </div>
+        <h2>AI 客户评论分析器</h2>
+        <div class="desc">
+          粘贴用户评论、客服记录或问卷反馈，自动分析痛点、需求和卖点。
+        </div>
+        <div class="scene">
+          适合：评论区分析、用户反馈分析、产品优化。
+        </div>
+        <div class="card-meta">
+          <span>版本：v1.0</span>
+          <span>类型：分析工具</span>
+        </div>
+        <a class="btn" href="comment_analysis_form.html">进入工具</a>
+      </div>
+
+      <div class="card">
+        <div class="card-top">
+          <div class="icon">📚</div>
+          <span class="status">已完成</span>
+        </div>
+        <h2>AI 资料总结器</h2>
+        <div class="desc">
+          粘贴文章、教程、课程资料或 PDF 复制文本，生成结构化学习笔记。
+        </div>
+        <div class="scene">
+          适合：资料整理、知识库沉淀、Notion 笔记。
+        </div>
+        <div class="card-meta">
+          <span>版本：v1.0</span>
+          <span>类型：知识工具</span>
+        </div>
+        <a class="btn" href="material_summary_form.html">进入工具</a>
+      </div>
+
+      <div class="card">
+        <div class="card-top">
+          <div class="icon">📕</div>
+          <span class="status">实验版</span>
+        </div>
+        <h2>AI PDF 总结器</h2>
+        <div class="desc">
+          上传可复制文字型 PDF，自动提取文本并生成总结报告。
+        </div>
+        <div class="scene">
+          适合：PDF 资料、课程讲义、电子文档总结。
+        </div>
+        <div class="card-meta">
+          <span>版本：v1.0</span>
+          <span>类型：文件工具</span>
+        </div>
+        <a class="btn" href="pdf_summary_form.html">进入工具</a>
+      </div>
+
+      <div class="card">
+        <div class="card-top">
+          <div class="icon">📊</div>
+          <span class="status">实验版</span>
+        </div>
+        <h2>AI 表格数据分析器</h2>
+        <div class="desc">
+          上传 CSV 表格，自动分析数据概览、关键发现、异常问题和业务建议。
+        </div>
+        <div class="scene">
+          适合：销售数据、问卷数据、客户表、反馈表。
+        </div>
+        <div class="card-meta">
+          <span>版本：v1.0</span>
+          <span>类型：数据工具</span>
+        </div>
+        <a class="btn" href="table_analysis_form.html">进入工具</a>
+      </div>
+    </div>
+
+    <div class="footer">
+      AI 自动化工作台 v1.0 · 本地学习项目 · HTML + n8n + AI
+    </div>
+  </div>
+</body>
+</html>
