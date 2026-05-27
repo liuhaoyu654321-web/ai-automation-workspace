@@ -184,6 +184,9 @@
   <script>
     let isSubmitting = false;
     let latestAnalysis = "";
+    const PUBLIC_DEMO_MODE = true;
+    const PUBLIC_DEMO_MESSAGE = "当前为公网展示版，暂不开放在线调用，避免 API 消耗。如需体验完整功能，请联系作者。";
+    const PUBLIC_DEMO_RESULT = "这是 AI 自动化工作台的公网演示页面。完整功能包括提交内容、调用云端 n8n、调用 AI 模型并返回结果。当前版本仅用于作品集展示，在线调用已关闭。";
 
     function updateCharCount() {
       const text = document.getElementById("commentsText").value;
@@ -201,6 +204,15 @@
       const commentsText = document.getElementById("commentsText").value;
       const analysisType = document.getElementById("analysisType").value;
 
+      if (PUBLIC_DEMO_MODE === true) {
+        messageEl.innerText = PUBLIC_DEMO_MESSAGE;
+        resultBox.style.display = "block";
+        analysisText.innerText = PUBLIC_DEMO_RESULT;
+        analysisMeta.innerText = "公网展示版 | 在线调用已关闭";
+        latestAnalysis = PUBLIC_DEMO_RESULT;
+        return;
+      }
+
       if (isSubmitting) {
         messageEl.innerText = "正在分析中，请不要重复点击。";
         return;
@@ -216,7 +228,7 @@
         return;
       }
 
-      const webhookUrl = "https://haoyun8n.app.n8n.cloud/webhook/comment-analysis";
+      const webhookUrl = "";
 
       isSubmitting = true;
       submitBtn.disabled = true;
