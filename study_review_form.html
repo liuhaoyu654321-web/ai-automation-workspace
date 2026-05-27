@@ -1,0 +1,331 @@
+1<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI 学习复盘助手</title>
+
+  <style>
+    body {
+      font-family: Arial, "Microsoft YaHei", sans-serif;
+      background: #f5f5f5;
+      margin: 0;
+      padding: 40px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: white;
+      padding: 32px;
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    }
+
+    h1 {
+      margin-top: 0;
+      font-size: 32px;
+    }
+
+    p {
+      line-height: 1.6;
+    }
+
+    label {
+      font-weight: bold;
+    }
+
+    textarea,
+    select {
+      width: 100%;
+      box-sizing: border-box;
+      margin-top: 8px;
+      padding: 12px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 260px;
+    }
+
+    button {
+      margin-top: 20px;
+      margin-right: 8px;
+      padding: 12px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      background: #111827;
+      color: white;
+    }
+
+    button:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+    .back-link {
+  display: inline-block;
+  margin-bottom: 16px;
+  color: #374151;
+  text-decoration: none;
+  font-size: 15px;
+}
+
+.back-link:hover {
+  text-decoration: underline;
+}
+
+    .secondary-btn {
+      background: #374151;
+    }
+
+    .form-section {
+      margin-top: 20px;
+    }
+
+    #message {
+      margin-top: 20px;
+      padding: 12px;
+      background: #f3f4f6;
+      border-radius: 8px;
+      white-space: pre-wrap;
+    }
+
+    #resultBox {
+      margin-top: 24px;
+      padding: 20px;
+      border-radius: 12px;
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      white-space: pre-wrap;
+      line-height: 1.7;
+      display: none;
+    }
+
+    #reviewText {
+      margin-top: 12px;
+    }
+
+    .meta {
+      margin-top: 12px;
+      color: #666;
+      font-size: 14px;
+    }
+
+    .hint {
+      color: #666;
+      font-size: 14px;
+    }
+
+    .counter {
+      margin-top: 8px;
+      color: #444;
+      font-size: 14px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <a href="ai_workspace_home.html" class="back-link">← 返回工作台</a>
+    <h1>AI 学习复盘助手</h1>
+
+    <p>
+      输入今天的学习记录，选择复盘类型，系统会提交到 n8n 自动整理成结构化学习复盘。
+    </p>
+
+    <div class="form-section">
+      <label for="studyText">学习记录：</label>
+      <textarea
+        id="studyText"
+        placeholder="例如：今天学习了 n8n 的 Switch 分流，做了小红书笔记、抖音口播稿和标题三个分支。中间遇到的问题是 Expression 和 Fixed 模式搞混了，后来明白了带 {{$...}} 的都要用 Expression，固定文字用 Fixed。"
+        oninput="updateCharCount()"
+      ></textarea>
+
+      <div class="counter" id="charCount">当前字数：0</div>
+      <p class="hint">建议输入 100～1500 字学习记录。</p>
+    </div>
+
+    <div class="form-section">
+      <label for="reviewType">复盘类型：</label>
+      <select id="reviewType">
+        <option value="日复盘">日复盘</option>
+        <option value="周复盘">周复盘</option>
+        <option value="项目复盘">项目复盘</option>
+        <option value="学习打卡文案">学习打卡文案</option>
+      </select>
+    </div>
+
+    <button id="submitBtn" onclick="submitToN8n()">开始复盘</button>
+    <button class="secondary-btn" onclick="clearAll()">清空内容</button>
+
+    <p id="message">等待提交。</p>
+
+    <div id="resultBox">
+      <h2>复盘结果</h2>
+
+      <button class="secondary-btn" onclick="copyReview()">
+        复制复盘结果
+      </button>
+
+      <div id="reviewText"></div>
+      <div class="meta" id="reviewMeta"></div>
+    </div>
+  </div>
+
+  <script>
+    let isSubmitting = false;
+    let latestReview = "";
+
+    function updateCharCount() {
+      const text = document.getElementById("studyText").value;
+      document.getElementById("charCount").innerText =
+        "当前字数：" + text.length;
+    }
+
+    async function submitToN8n() {
+      const submitBtn = document.getElementById("submitBtn");
+      const messageEl = document.getElementById("message");
+      const resultBox = document.getElementById("resultBox");
+      const reviewText = document.getElementById("reviewText");
+      const reviewMeta = document.getElementById("reviewMeta");
+
+      const studyText = document.getElementById("studyText").value;
+      const reviewType = document.getElementById("reviewType").value;
+
+      if (isSubmitting) {
+        messageEl.innerText = "正在复盘中，请不要重复点击。";
+        return;
+      }
+
+      if (!studyText.trim()) {
+        messageEl.innerText = "请输入学习记录。";
+        return;
+      }
+
+      if (studyText.length < 20) {
+        messageEl.innerText = "学习记录有点短，建议输入 20 字以上。";
+        return;
+      }
+
+      const webhookUrl = "http://localhost:18080/webhook/study-review";
+
+      isSubmitting = true;
+      submitBtn.disabled = true;
+      submitBtn.innerText = "复盘中...";
+      resultBox.style.display = "none";
+      reviewText.innerText = "";
+      reviewMeta.innerText = "";
+      latestReview = "";
+
+      messageEl.innerText =
+        "正在提交到 n8n...\n" +
+        "复盘类型：" + reviewType + "\n" +
+        "字数：" + studyText.length;
+
+      try {
+        const formData = new URLSearchParams();
+        formData.append("study_text", studyText);
+        formData.append("review_type", reviewType);
+        formData.append("token", "n8n_long_summary_2026_eric");
+
+        const response = await fetch(webhookUrl, {
+          method: "POST",
+          body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.status === "done") {
+          latestReview = data.result || "";
+          const notionSavedValue =
+            typeof data.notion_saved === "string"
+              ? data.notion_saved.trim().toLowerCase()
+              : data.notion_saved;
+          const notionSaved =
+            notionSavedValue === true ||
+            notionSavedValue === "true" ||
+            notionSavedValue === "success" ||
+            notionSavedValue === "saved" ||
+            notionSavedValue === "已保存" ||
+            notionSavedValue === "保存成功";
+          const notionFailed =
+            notionSavedValue === false ||
+            notionSavedValue === "false" ||
+            notionSavedValue === "failed" ||
+            notionSavedValue === "error" ||
+            notionSavedValue === "保存失败";
+
+          if (notionSaved) {
+            messageEl.innerText = "复盘完成，已保存到 Notion。";
+          } else if (notionFailed) {
+            messageEl.innerText = "复盘完成，但 Notion 保存失败。";
+          } else {
+            messageEl.innerText = "复盘完成。";
+          }
+
+          resultBox.style.display = "block";
+          reviewText.innerText = latestReview || "没有返回复盘内容。";
+
+          const notionStatus =
+            notionSaved
+              ? "已保存到 Notion"
+              : notionFailed
+                ? "保存失败，但复盘结果已生成"
+                : "未返回保存状态";
+
+          reviewMeta.innerText =
+            "复盘类型：" + (data.review_type || reviewType) +
+            " | Notion 保存状态：" + notionStatus;
+        } else {
+          messageEl.innerText =
+            "处理失败。\n错误类型：" + (data.error_type || "unknown") +
+            "\n提示：" + (data.message || "");
+        }
+      } catch (error) {
+        messageEl.innerText =
+          "请求失败。请检查 n8n 是否运行、Webhook URL 是否正确，或 workflow 是否返回 JSON。";
+
+        console.error("请求失败：", error);
+      }
+
+      setTimeout(function () {
+        isSubmitting = false;
+        submitBtn.disabled = false;
+        submitBtn.innerText = "开始复盘";
+      }, 3000);
+    }
+
+    async function copyReview() {
+      const messageEl = document.getElementById("message");
+
+      if (!latestReview) {
+        messageEl.innerText = "当前没有可复制的复盘结果。";
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(latestReview);
+        messageEl.innerText = "复盘结果已复制到剪贴板。";
+      } catch (error) {
+        messageEl.innerText = "复制失败，请手动选择复盘内容复制。";
+        console.error("复制失败：", error);
+      }
+    }
+
+    function clearAll() {
+      document.getElementById("studyText").value = "";
+      document.getElementById("reviewType").value = "日复盘";
+      document.getElementById("charCount").innerText = "当前字数：0";
+      document.getElementById("message").innerText = "已清空，可以输入新的学习记录。";
+      document.getElementById("resultBox").style.display = "none";
+      document.getElementById("reviewText").innerText = "";
+      document.getElementById("reviewMeta").innerText = "";
+      latestReview = "";
+    }
+  </script>
+</body>
+</html>

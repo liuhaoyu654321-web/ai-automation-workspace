@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI 资料总结器</title>
+
+  <style>
+    body {
+      font-family: Arial, "Microsoft YaHei", sans-serif;
+      background: #f5f5f5;
+      margin: 0;
+      padding: 40px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: white;
+      padding: 32px;
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    }
+
+    h1 {
+      margin-top: 0;
+      font-size: 32px;
+    }
+
+    p {
+      line-height: 1.6;
+    }
+
+    label {
+      font-weight: bold;
+    }
+
+    textarea,
+    select {
+      width: 100%;
+      box-sizing: border-box;
+      margin-top: 8px;
+      padding: 12px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 300px;
+    }
+
+    button {
+      margin-top: 20px;
+      margin-right: 8px;
+      padding: 12px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      background: #111827;
+      color: white;
+    }
+
+    button:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+    .back-link {
+  display: inline-block;
+  margin-bottom: 16px;
+  color: #374151;
+  text-decoration: none;
+  font-size: 15px;
+}
+
+.back-link:hover {
+  text-decoration: underline;
+}
+
+    .secondary-btn {
+      background: #374151;
+    }
+
+    .form-section {
+      margin-top: 20px;
+    }
+
+    #message {
+      margin-top: 20px;
+      padding: 12px;
+      background: #f3f4f6;
+      border-radius: 8px;
+      white-space: pre-wrap;
+    }
+
+    #resultBox {
+      margin-top: 24px;
+      padding: 20px;
+      border-radius: 12px;
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      white-space: pre-wrap;
+      line-height: 1.7;
+      display: none;
+    }
+
+    #summaryText {
+      margin-top: 12px;
+    }
+
+    .meta {
+      margin-top: 12px;
+      color: #666;
+      font-size: 14px;
+    }
+
+    .hint {
+      color: #666;
+      font-size: 14px;
+    }
+
+    .counter {
+      margin-top: 8px;
+      color: #444;
+      font-size: 14px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <a href="ai_workspace_home.html" class="back-link">← 返回工作台</a>
+    <h1>AI 资料总结器</h1>
+
+    <p>
+      粘贴文章、课程笔记、PDF 复制文本或资料内容，选择总结类型，系统会提交到 n8n 自动生成结构化总结报告。
+    </p>
+
+    <div class="form-section">
+      <label for="materialText">资料内容：</label>
+      <textarea
+        id="materialText"
+        placeholder="请粘贴文章、课程笔记、PDF 复制出来的文字、教程内容或研究资料。"
+        oninput="updateCharCount()"
+      ></textarea>
+
+      <div class="counter" id="charCount">当前字数：0</div>
+      <p class="hint">建议先输入 300～3000 字资料内容。PDF 文件版后面再升级。</p>
+    </div>
+
+    <div class="form-section">
+      <label for="summaryType">总结类型：</label>
+      <select id="summaryType">
+        <option value="学习笔记">学习笔记</option>
+        <option value="核心摘要">核心摘要</option>
+        <option value="概念提取">概念提取</option>
+        <option value="行动建议">行动建议</option>
+        <option value="资料拆解">资料拆解</option>
+      </select>
+    </div>
+
+    <button id="submitBtn" onclick="submitToN8n()">开始总结</button>
+    <button class="secondary-btn" onclick="clearAll()">清空内容</button>
+
+    <p id="message">等待提交。</p>
+
+    <div id="resultBox">
+      <h2>资料总结报告</h2>
+
+      <button class="secondary-btn" onclick="copySummary()">
+        复制总结报告
+      </button>
+
+      <div id="summaryText"></div>
+      <div class="meta" id="summaryMeta"></div>
+    </div>
+  </div>
+
+  <script>
+    let isSubmitting = false;
+    let latestSummary = "";
+
+    function updateCharCount() {
+      const text = document.getElementById("materialText").value;
+      document.getElementById("charCount").innerText =
+        "当前字数：" + text.length;
+    }
+
+    async function submitToN8n() {
+      const submitBtn = document.getElementById("submitBtn");
+      const messageEl = document.getElementById("message");
+      const resultBox = document.getElementById("resultBox");
+      const summaryText = document.getElementById("summaryText");
+      const summaryMeta = document.getElementById("summaryMeta");
+
+      const materialText = document.getElementById("materialText").value;
+      const summaryType = document.getElementById("summaryType").value;
+
+      if (isSubmitting) {
+        messageEl.innerText = "正在总结中，请不要重复点击。";
+        return;
+      }
+
+      if (!materialText.trim()) {
+        messageEl.innerText = "请输入资料内容。";
+        return;
+      }
+
+      if (materialText.length < 50) {
+        messageEl.innerText = "资料内容有点短，建议输入 50 字以上。";
+        return;
+      }
+
+      const webhookUrl = "http://localhost:18080/webhook/material-summary";
+
+      isSubmitting = true;
+      submitBtn.disabled = true;
+      submitBtn.innerText = "总结中...";
+      resultBox.style.display = "none";
+      summaryText.innerText = "";
+      summaryMeta.innerText = "";
+      latestSummary = "";
+
+      messageEl.innerText =
+        "正在提交到 n8n...\n" +
+        "总结类型：" + summaryType + "\n" +
+        "字数：" + materialText.length;
+
+      try {
+        const formData = new URLSearchParams();
+        formData.append("material_text", materialText);
+        formData.append("summary_type", summaryType);
+        formData.append("token", "n8n_long_summary_2026_eric");
+
+        const response = await fetch(webhookUrl, {
+          method: "POST",
+          body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.status === "done") {
+          latestSummary = data.result || "";
+
+          messageEl.innerText = "总结完成。";
+          resultBox.style.display = "block";
+          summaryText.innerText = latestSummary || "没有返回总结内容。";
+
+          summaryMeta.innerText =
+            "总结类型：" + (data.summary_type || summaryType);
+        } else {
+          messageEl.innerText =
+            "处理失败。\n错误类型：" + (data.error_type || "unknown") +
+            "\n提示：" + (data.message || "");
+        }
+      } catch (error) {
+        messageEl.innerText =
+          "请求失败。请检查 n8n 是否运行、Webhook URL 是否正确，或 workflow 是否返回 JSON。";
+
+        console.error("请求失败：", error);
+      }
+
+      setTimeout(function () {
+        isSubmitting = false;
+        submitBtn.disabled = false;
+        submitBtn.innerText = "开始总结";
+      }, 3000);
+    }
+
+    async function copySummary() {
+      const messageEl = document.getElementById("message");
+
+      if (!latestSummary) {
+        messageEl.innerText = "当前没有可复制的总结报告。";
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(latestSummary);
+        messageEl.innerText = "总结报告已复制到剪贴板。";
+      } catch (error) {
+        messageEl.innerText = "复制失败，请手动选择总结报告复制。";
+        console.error("复制失败：", error);
+      }
+    }
+
+    function clearAll() {
+      document.getElementById("materialText").value = "";
+      document.getElementById("summaryType").value = "学习笔记";
+      document.getElementById("charCount").innerText = "当前字数：0";
+      document.getElementById("message").innerText = "已清空，可以输入新的资料内容。";
+      document.getElementById("resultBox").style.display = "none";
+      document.getElementById("summaryText").innerText = "";
+      document.getElementById("summaryMeta").innerText = "";
+      latestSummary = "";
+    }
+  </script>
+</body>
+</html>

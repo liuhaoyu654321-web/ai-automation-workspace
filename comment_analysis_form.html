@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI 客户评论分析器</title>
+
+  <style>
+    body {
+      font-family: Arial, "Microsoft YaHei", sans-serif;
+      background: #f5f5f5;
+      margin: 0;
+      padding: 40px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: white;
+      padding: 32px;
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    }
+
+    h1 {
+      margin-top: 0;
+      font-size: 32px;
+    }
+
+    p {
+      line-height: 1.6;
+    }
+
+    label {
+      font-weight: bold;
+    }
+
+    textarea,
+    select {
+      width: 100%;
+      box-sizing: border-box;
+      margin-top: 8px;
+      padding: 12px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 280px;
+    }
+
+    button {
+      margin-top: 20px;
+      margin-right: 8px;
+      padding: 12px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      background: #111827;
+      color: white;
+    }
+
+    button:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+    .back-link {
+  display: inline-block;
+  margin-bottom: 16px;
+  color: #374151;
+  text-decoration: none;
+  font-size: 15px;
+}
+
+.back-link:hover {
+  text-decoration: underline;
+}
+
+    .secondary-btn {
+      background: #374151;
+    }
+
+    .form-section {
+      margin-top: 20px;
+    }
+
+    #message {
+      margin-top: 20px;
+      padding: 12px;
+      background: #f3f4f6;
+      border-radius: 8px;
+      white-space: pre-wrap;
+    }
+
+    #resultBox {
+      margin-top: 24px;
+      padding: 20px;
+      border-radius: 12px;
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      white-space: pre-wrap;
+      line-height: 1.7;
+      display: none;
+    }
+
+    #analysisText {
+      margin-top: 12px;
+    }
+
+    .meta {
+      margin-top: 12px;
+      color: #666;
+      font-size: 14px;
+    }
+
+    .hint {
+      color: #666;
+      font-size: 14px;
+    }
+
+    .counter {
+      margin-top: 8px;
+      color: #444;
+      font-size: 14px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <a href="ai_workspace_home.html" class="back-link">← 返回工作台</a>
+    <h1>AI 客户评论分析器</h1>
+
+    <p>
+      粘贴一批用户评论、客服记录或问卷反馈，选择分析类型，系统会提交到 n8n 自动生成结构化分析报告。
+    </p>
+
+    <div class="form-section">
+      <label for="commentsText">评论 / 反馈内容：</label>
+      <textarea
+        id="commentsText"
+        placeholder="例如：
+1. 课程讲得挺清楚，但是节奏有点快。
+2. 希望能多给一些模板。
+3. 价格有点贵，但内容确实有帮助。
+4. 新手刚开始会有点懵。
+5. 案例很真实，比纯理论好理解。"
+        oninput="updateCharCount()"
+      ></textarea>
+
+      <div class="counter" id="charCount">当前字数：0</div>
+      <p class="hint">建议先输入 5～30 条评论，或者 100～3000 字反馈内容。</p>
+    </div>
+
+    <div class="form-section">
+      <label for="analysisType">分析类型：</label>
+      <select id="analysisType">
+        <option value="基础分析">基础分析</option>
+        <option value="产品改进建议">产品改进建议</option>
+        <option value="营销卖点提取">营销卖点提取</option>
+        <option value="负面问题归因">负面问题归因</option>
+      </select>
+    </div>
+
+    <button id="submitBtn" onclick="submitToN8n()">开始分析</button>
+    <button class="secondary-btn" onclick="clearAll()">清空内容</button>
+
+    <p id="message">等待提交。</p>
+
+    <div id="resultBox">
+      <h2>分析报告</h2>
+
+      <button class="secondary-btn" onclick="copyAnalysis()">
+        复制分析报告
+      </button>
+
+      <div id="analysisText"></div>
+      <div class="meta" id="analysisMeta"></div>
+    </div>
+  </div>
+
+  <script>
+    let isSubmitting = false;
+    let latestAnalysis = "";
+
+    function updateCharCount() {
+      const text = document.getElementById("commentsText").value;
+      document.getElementById("charCount").innerText =
+        "当前字数：" + text.length;
+    }
+
+    async function submitToN8n() {
+      const submitBtn = document.getElementById("submitBtn");
+      const messageEl = document.getElementById("message");
+      const resultBox = document.getElementById("resultBox");
+      const analysisText = document.getElementById("analysisText");
+      const analysisMeta = document.getElementById("analysisMeta");
+
+      const commentsText = document.getElementById("commentsText").value;
+      const analysisType = document.getElementById("analysisType").value;
+
+      if (isSubmitting) {
+        messageEl.innerText = "正在分析中，请不要重复点击。";
+        return;
+      }
+
+      if (!commentsText.trim()) {
+        messageEl.innerText = "请输入评论或反馈内容。";
+        return;
+      }
+
+      if (commentsText.length < 20) {
+        messageEl.innerText = "内容有点短，建议输入 20 字以上。";
+        return;
+      }
+
+      const webhookUrl = "http://localhost:18080/webhook/comment-analysis";
+
+      isSubmitting = true;
+      submitBtn.disabled = true;
+      submitBtn.innerText = "分析中...";
+      resultBox.style.display = "none";
+      analysisText.innerText = "";
+      analysisMeta.innerText = "";
+      latestAnalysis = "";
+
+      messageEl.innerText =
+        "正在提交到 n8n...\n" +
+        "分析类型：" + analysisType + "\n" +
+        "字数：" + commentsText.length;
+
+      try {
+        const formData = new URLSearchParams();
+        formData.append("comments_text", commentsText);
+        formData.append("analysis_type", analysisType);
+        formData.append("token", "n8n_long_summary_2026_eric");
+
+        const response = await fetch(webhookUrl, {
+          method: "POST",
+          body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.status === "done") {
+          latestAnalysis = data.result || "";
+
+          messageEl.innerText = "分析完成。";
+          resultBox.style.display = "block";
+          analysisText.innerText = latestAnalysis || "没有返回分析内容。";
+
+          analysisMeta.innerText =
+            "分析类型：" + (data.analysis_type || analysisType);
+        } else {
+          messageEl.innerText =
+            "处理失败。\n错误类型：" + (data.error_type || "unknown") +
+            "\n提示：" + (data.message || "");
+        }
+      } catch (error) {
+        messageEl.innerText =
+          "请求失败。请检查 n8n 是否运行、Webhook URL 是否正确，或 workflow 是否返回 JSON。";
+
+        console.error("请求失败：", error);
+      }
+
+      setTimeout(function () {
+        isSubmitting = false;
+        submitBtn.disabled = false;
+        submitBtn.innerText = "开始分析";
+      }, 3000);
+    }
+
+    async function copyAnalysis() {
+      const messageEl = document.getElementById("message");
+
+      if (!latestAnalysis) {
+        messageEl.innerText = "当前没有可复制的分析报告。";
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(latestAnalysis);
+        messageEl.innerText = "分析报告已复制到剪贴板。";
+      } catch (error) {
+        messageEl.innerText = "复制失败，请手动选择分析报告复制。";
+        console.error("复制失败：", error);
+      }
+    }
+
+    function clearAll() {
+      document.getElementById("commentsText").value = "";
+      document.getElementById("analysisType").value = "基础分析";
+      document.getElementById("charCount").innerText = "当前字数：0";
+      document.getElementById("message").innerText = "已清空，可以输入新的评论内容。";
+      document.getElementById("resultBox").style.display = "none";
+      document.getElementById("analysisText").innerText = "";
+      document.getElementById("analysisMeta").innerText = "";
+      latestAnalysis = "";
+    }
+  </script>
+</body>
+</html>

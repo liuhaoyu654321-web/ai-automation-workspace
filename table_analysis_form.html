@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI 表格数据分析器</title>
+
+  <style>
+    body {
+      font-family: Arial, "Microsoft YaHei", sans-serif;
+      background: #f5f5f5;
+      margin: 0;
+      padding: 40px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: white;
+      padding: 32px;
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    }
+
+    h1 {
+      margin-top: 0;
+      font-size: 32px;
+    }
+
+    p {
+      line-height: 1.6;
+    }
+
+    label {
+      font-weight: bold;
+    }
+
+    input,
+    select {
+      width: 100%;
+      box-sizing: border-box;
+      margin-top: 8px;
+      padding: 12px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background: white;
+    }
+
+    button {
+      margin-top: 20px;
+      margin-right: 8px;
+      padding: 12px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      background: #111827;
+      color: white;
+    }
+
+    button:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+    .back-link {
+  display: inline-block;
+  margin-bottom: 16px;
+  color: #374151;
+  text-decoration: none;
+  font-size: 15px;
+}
+
+.back-link:hover {
+  text-decoration: underline;
+}
+
+    .secondary-btn {
+      background: #374151;
+    }
+
+    .form-section {
+      margin-top: 20px;
+    }
+
+    #message {
+      margin-top: 20px;
+      padding: 12px;
+      background: #f3f4f6;
+      border-radius: 8px;
+      white-space: pre-wrap;
+    }
+
+    #resultBox {
+      margin-top: 24px;
+      padding: 20px;
+      border-radius: 12px;
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      white-space: pre-wrap;
+      line-height: 1.7;
+      display: none;
+    }
+
+    #analysisText {
+      margin-top: 12px;
+    }
+
+    .meta {
+      margin-top: 12px;
+      color: #666;
+      font-size: 14px;
+    }
+
+    .hint {
+      color: #666;
+      font-size: 14px;
+    }
+
+    .file-info {
+      margin-top: 8px;
+      color: #444;
+      font-size: 14px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <a href="ai_workspace_home.html" class="back-link">← 返回工作台</a>
+    <h1>AI 表格数据分析器</h1>
+
+    <p>
+      上传 CSV 表格文件，选择分析类型，系统会提交到 n8n，自动读取表格并生成结构化数据分析报告。
+    </p>
+
+    <div class="form-section">
+      <label for="dataFile">选择 CSV 文件：</label>
+      <input
+        id="dataFile"
+        type="file"
+        accept=".csv,text/csv"
+        onchange="updateFileInfo()"
+      />
+
+      <div class="file-info" id="fileInfo">当前未选择文件。</div>
+      <p class="hint">第一版建议上传 CSV 文件，后续再升级支持 .xlsx Excel 文件。</p>
+    </div>
+
+    <div class="form-section">
+      <label for="analysisType">分析类型：</label>
+      <select id="analysisType">
+        <option value="基础数据分析">基础数据分析</option>
+        <option value="销售分析">销售分析</option>
+        <option value="用户反馈分析">用户反馈分析</option>
+        <option value="客户画像分析">客户画像分析</option>
+        <option value="异常问题分析">异常问题分析</option>
+      </select>
+    </div>
+
+    <button id="submitBtn" onclick="submitToN8n()">上传并分析</button>
+    <button class="secondary-btn" onclick="clearAll()">清空文件</button>
+
+    <p id="message">等待提交。</p>
+
+    <div id="resultBox">
+      <h2>数据分析报告</h2>
+
+      <button class="secondary-btn" onclick="copyAnalysis()">
+        复制分析报告
+      </button>
+
+      <div id="analysisText"></div>
+      <div class="meta" id="analysisMeta"></div>
+    </div>
+  </div>
+
+  <script>
+    let isSubmitting = false;
+    let latestAnalysis = "";
+
+    function updateFileInfo() {
+      const fileInput = document.getElementById("dataFile");
+      const fileInfo = document.getElementById("fileInfo");
+      const file = fileInput.files[0];
+
+      if (!file) {
+        fileInfo.innerText = "当前未选择文件。";
+        return;
+      }
+
+      const sizeKB = (file.size / 1024).toFixed(2);
+      fileInfo.innerText =
+        "已选择文件：" + file.name + " | 大小：" + sizeKB + " KB";
+    }
+
+    async function submitToN8n() {
+      const submitBtn = document.getElementById("submitBtn");
+      const messageEl = document.getElementById("message");
+      const resultBox = document.getElementById("resultBox");
+      const analysisText = document.getElementById("analysisText");
+      const analysisMeta = document.getElementById("analysisMeta");
+
+      const fileInput = document.getElementById("dataFile");
+      const file = fileInput.files[0];
+      const analysisType = document.getElementById("analysisType").value;
+
+      if (isSubmitting) {
+        messageEl.innerText = "正在分析中，请不要重复点击。";
+        return;
+      }
+
+      if (!file) {
+        messageEl.innerText = "请先选择一个 CSV 文件。";
+        return;
+      }
+
+      const fileName = file.name.toLowerCase();
+      if (!fileName.endsWith(".csv")) {
+        messageEl.innerText = "当前第一版只支持 CSV 文件。";
+        return;
+      }
+
+      const maxSizeMB = 5;
+      if (file.size > maxSizeMB * 1024 * 1024) {
+        messageEl.innerText = "文件太大，建议先上传 5MB 以内的 CSV。";
+        return;
+      }
+
+      const webhookUrl = "http://localhost:18080/webhook/table-analysis";
+
+      isSubmitting = true;
+      submitBtn.disabled = true;
+      submitBtn.innerText = "分析中...";
+      resultBox.style.display = "none";
+      analysisText.innerText = "";
+      analysisMeta.innerText = "";
+      latestAnalysis = "";
+
+      const sizeKB = (file.size / 1024).toFixed(2);
+
+      messageEl.innerText =
+        "正在上传到 n8n...\n" +
+        "文件名：" + file.name + "\n" +
+        "文件大小：" + sizeKB + " KB\n" +
+        "分析类型：" + analysisType;
+
+      try {
+        const csvText = await file.text();
+
+        const formData = new URLSearchParams();
+        formData.append("csv_text", csvText);
+        formData.append("file_name", file.name);
+        formData.append("analysis_type", analysisType);
+        formData.append("token", "n8n_long_summary_2026_eric");
+
+        const response = await fetch(webhookUrl, {
+        method: "POST",
+        body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.status === "done") {
+          latestAnalysis = data.result || "";
+
+          messageEl.innerText = "数据分析完成。";
+          resultBox.style.display = "block";
+          analysisText.innerText = latestAnalysis || "没有返回分析内容。";
+
+          analysisMeta.innerText =
+            "分析类型：" + (data.analysis_type || analysisType) +
+            " | 文件名：" + (data.file_name || file.name) +
+            " | 行数：" + (data.row_count || "未知") +
+            " | 列数：" + (data.column_count || "未知");
+        } else {
+          messageEl.innerText =
+            "处理失败。\n错误类型：" + (data.error_type || "unknown") +
+            "\n提示：" + (data.message || "");
+        }
+      } catch (error) {
+        messageEl.innerText =
+          "请求失败。请检查 n8n 是否运行、Webhook URL 是否正确，或 workflow 是否返回 JSON。";
+
+        console.error("请求失败：", error);
+      }
+
+      setTimeout(function () {
+        isSubmitting = false;
+        submitBtn.disabled = false;
+        submitBtn.innerText = "上传并分析";
+      }, 3000);
+    }
+
+    async function copyAnalysis() {
+      const messageEl = document.getElementById("message");
+
+      if (!latestAnalysis) {
+        messageEl.innerText = "当前没有可复制的分析报告。";
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(latestAnalysis);
+        messageEl.innerText = "分析报告已复制到剪贴板。";
+      } catch (error) {
+        messageEl.innerText = "复制失败，请手动选择分析报告复制。";
+        console.error("复制失败：", error);
+      }
+    }
+
+    function clearAll() {
+      document.getElementById("dataFile").value = "";
+      document.getElementById("analysisType").value = "基础数据分析";
+      document.getElementById("fileInfo").innerText = "当前未选择文件。";
+      document.getElementById("message").innerText = "已清空，可以选择新的 CSV 文件。";
+      document.getElementById("resultBox").style.display = "none";
+      document.getElementById("analysisText").innerText = "";
+      document.getElementById("analysisMeta").innerText = "";
+      latestAnalysis = "";
+    }
+  </script>
+</body>
+</html>

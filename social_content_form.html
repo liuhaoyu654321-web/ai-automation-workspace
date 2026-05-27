@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI 自媒体内容助手</title>
+
+  <style>
+    body {
+      font-family: Arial, "Microsoft YaHei", sans-serif;
+      background: #f5f5f5;
+      margin: 0;
+      padding: 40px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: white;
+      padding: 32px;
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    }
+
+    h1 {
+      margin-top: 0;
+      font-size: 32px;
+    }
+
+    p {
+      line-height: 1.6;
+    }
+
+    label {
+      font-weight: bold;
+    }
+
+    textarea,
+    select {
+      width: 100%;
+      box-sizing: border-box;
+      margin-top: 8px;
+      padding: 12px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 220px;
+    }
+
+    button {
+      margin-top: 20px;
+      margin-right: 8px;
+      padding: 12px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      background: #111827;
+      color: white;
+    }
+
+    button:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+    .back-link {
+  display: inline-block;
+  margin-bottom: 16px;
+  color: #374151;
+  text-decoration: none;
+  font-size: 15px;
+}
+
+.back-link:hover {
+  text-decoration: underline;
+}
+
+    .secondary-btn {
+      background: #374151;
+    }
+
+    .form-section {
+      margin-top: 20px;
+    }
+
+    #message {
+      margin-top: 20px;
+      padding: 12px;
+      background: #f3f4f6;
+      border-radius: 8px;
+      white-space: pre-wrap;
+    }
+
+    #resultBox {
+      margin-top: 24px;
+      padding: 20px;
+      border-radius: 12px;
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      white-space: pre-wrap;
+      line-height: 1.7;
+      display: none;
+    }
+
+    #resultText {
+      margin-top: 12px;
+    }
+
+    .meta {
+      margin-top: 12px;
+      color: #666;
+      font-size: 14px;
+    }
+
+    .hint {
+      color: #666;
+      font-size: 14px;
+    }
+
+    .counter {
+      margin-top: 8px;
+      color: #444;
+      font-size: 14px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <a href="ai_workspace_home.html" class="back-link">← 返回工作台</a>
+    <h1>AI 自媒体内容助手</h1>
+
+    <p>
+      输入一段想法、文章、学习记录或复盘内容，选择平台、内容类型和风格，系统会提交到 n8n 自动生成适合发布的内容。
+    </p>
+
+    <div class="form-section">
+      <label for="text">原始内容：</label>
+      <textarea
+        id="text"
+        placeholder="例如：今天我学会了 n8n 的 Webhook、Token 鉴权和长文本分块，感觉自动化系统不只是拖节点，而是要理解输入、判断、处理和输出的结构。"
+        oninput="updateCharCount()"
+      ></textarea>
+
+      <div class="counter" id="charCount">当前字数：0</div>
+      <p class="hint">建议先输入 100～1500 字内容。</p>
+    </div>
+
+    <div class="form-section">
+      <label for="platform">发布平台：</label>
+      <select id="platform">
+        <option value="小红书">小红书</option>
+        <option value="抖音">抖音</option>
+        <option value="B站">B站</option>
+        <option value="朋友圈">朋友圈</option>
+        <option value="通用">通用</option>
+      </select>
+    </div>
+
+    <div class="form-section">
+      <label for="contentType">内容类型：</label>
+      <select id="contentType">
+        <option value="小红书笔记">小红书笔记</option>
+        <option value="抖音口播稿">抖音口播稿</option>
+        <option value="标题">标题</option>
+      </select>
+      <p class="hint">第一版先支持：小红书笔记、抖音口播稿、标题。</p>
+    </div>
+
+    <div class="form-section">
+      <label for="style">输出风格：</label>
+      <select id="style">
+        <option value="真实分享">真实分享</option>
+        <option value="干货讲解">干货讲解</option>
+        <option value="情绪共鸣">情绪共鸣</option>
+        <option value="吸引点击">吸引点击</option>
+        <option value="正式一点">正式一点</option>
+      </select>
+    </div>
+
+    <button id="submitBtn" onclick="submitToN8n()">开始生成</button>
+    <button class="secondary-btn" onclick="clearAll()">清空内容</button>
+
+    <p id="message">等待提交。</p>
+
+    <div id="resultBox">
+      <h2>生成结果</h2>
+
+      <button class="secondary-btn" onclick="copyResult()">
+        复制结果
+      </button>
+
+      <div id="resultText"></div>
+      <div class="meta" id="resultMeta"></div>
+    </div>
+  </div>
+
+  <script>
+    let isSubmitting = false;
+    let latestResult = "";
+
+    function updateCharCount() {
+      const text = document.getElementById("text").value;
+      document.getElementById("charCount").innerText =
+        "当前字数：" + text.length;
+    }
+
+    async function submitToN8n() {
+      const submitBtn = document.getElementById("submitBtn");
+      const messageEl = document.getElementById("message");
+      const resultBox = document.getElementById("resultBox");
+      const resultText = document.getElementById("resultText");
+      const resultMeta = document.getElementById("resultMeta");
+
+      const text = document.getElementById("text").value;
+      const platform = document.getElementById("platform").value;
+      const contentType = document.getElementById("contentType").value;
+      const style = document.getElementById("style").value;
+
+      if (isSubmitting) {
+        messageEl.innerText = "正在生成中，请不要重复点击。";
+        return;
+      }
+
+      if (!text.trim()) {
+        messageEl.innerText = "请输入原始内容。";
+        return;
+      }
+
+      if (text.length < 20) {
+        messageEl.innerText = "内容有点短，建议输入 20 字以上。";
+        return;
+      }
+
+      const webhookUrl = "http://localhost:18080/webhook/social-content";
+
+      isSubmitting = true;
+      submitBtn.disabled = true;
+      submitBtn.innerText = "生成中...";
+      resultBox.style.display = "none";
+      resultText.innerText = "";
+      resultMeta.innerText = "";
+      latestResult = "";
+
+      messageEl.innerText =
+        "正在提交到 n8n...\n" +
+        "平台：" + platform + "\n" +
+        "内容类型：" + contentType + "\n" +
+        "风格：" + style + "\n" +
+        "字数：" + text.length;
+
+      try {
+        const formData = new URLSearchParams();
+        formData.append("text", text);
+        formData.append("platform", platform);
+        formData.append("content_type", contentType);
+        formData.append("style", style);
+        formData.append("token", "n8n_long_summary_2026_eric");
+
+        const response = await fetch(webhookUrl, {
+          method: "POST",
+          body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.status === "done") {
+          latestResult = data.result || "";
+
+          messageEl.innerText = "生成完成。";
+          resultBox.style.display = "block";
+          resultText.innerText = latestResult || "没有返回内容。";
+
+          resultMeta.innerText =
+            "平台：" + (data.platform || platform) +
+            " | 内容类型：" + (data.content_type || contentType) +
+            " | 风格：" + (data.style || style);
+        } else {
+          messageEl.innerText =
+            "处理失败。\n错误类型：" + (data.error_type || "unknown") +
+            "\n提示：" + (data.message || "");
+        }
+      } catch (error) {
+        messageEl.innerText =
+          "请求失败。请检查 n8n 是否运行、Webhook URL 是否正确，或 workflow 是否返回 JSON。";
+
+        console.error("请求失败：", error);
+      }
+
+      setTimeout(function () {
+        isSubmitting = false;
+        submitBtn.disabled = false;
+        submitBtn.innerText = "开始生成";
+      }, 3000);
+    }
+
+    async function copyResult() {
+      const messageEl = document.getElementById("message");
+
+      if (!latestResult) {
+        messageEl.innerText = "当前没有可复制的结果。";
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(latestResult);
+        messageEl.innerText = "结果已复制到剪贴板。";
+      } catch (error) {
+        messageEl.innerText = "复制失败，请手动选择结果复制。";
+        console.error("复制失败：", error);
+      }
+    }
+
+    function clearAll() {
+      document.getElementById("text").value = "";
+      document.getElementById("platform").value = "小红书";
+      document.getElementById("contentType").value = "小红书笔记";
+      document.getElementById("style").value = "真实分享";
+      document.getElementById("charCount").innerText = "当前字数：0";
+      document.getElementById("message").innerText = "已清空，可以输入新的内容。";
+      document.getElementById("resultBox").style.display = "none";
+      document.getElementById("resultText").innerText = "";
+      document.getElementById("resultMeta").innerText = "";
+      latestResult = "";
+    }
+  </script>
+</body>
+</html>

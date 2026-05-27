@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI PDF 总结器</title>
+
+  <style>
+    body {
+      font-family: Arial, "Microsoft YaHei", sans-serif;
+      background: #f5f5f5;
+      margin: 0;
+      padding: 40px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: white;
+      padding: 32px;
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    }
+
+    h1 {
+      margin-top: 0;
+      font-size: 32px;
+    }
+
+    p {
+      line-height: 1.6;
+    }
+
+    label {
+      font-weight: bold;
+    }
+
+    input,
+    select {
+      width: 100%;
+      box-sizing: border-box;
+      margin-top: 8px;
+      padding: 12px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background: white;
+    }
+
+    button {
+      margin-top: 20px;
+      margin-right: 8px;
+      padding: 12px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      background: #111827;
+      color: white;
+    }
+
+    button:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+    .back-link {
+  display: inline-block;
+  margin-bottom: 16px;
+  color: #374151;
+  text-decoration: none;
+  font-size: 15px;
+}
+
+.back-link:hover {
+  text-decoration: underline;
+}
+
+    .secondary-btn {
+      background: #374151;
+    }
+
+    .form-section {
+      margin-top: 20px;
+    }
+
+    #message {
+      margin-top: 20px;
+      padding: 12px;
+      background: #f3f4f6;
+      border-radius: 8px;
+      white-space: pre-wrap;
+    }
+
+    #resultBox {
+      margin-top: 24px;
+      padding: 20px;
+      border-radius: 12px;
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      white-space: pre-wrap;
+      line-height: 1.7;
+      display: none;
+    }
+
+    #summaryText {
+      margin-top: 12px;
+    }
+
+    .meta {
+      margin-top: 12px;
+      color: #666;
+      font-size: 14px;
+    }
+
+    .hint {
+      color: #666;
+      font-size: 14px;
+    }
+
+    .file-info {
+      margin-top: 8px;
+      color: #444;
+      font-size: 14px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <a href="ai_workspace_home.html" class="back-link">← 返回工作台</a>
+    <h1>AI PDF 总结器</h1>
+
+    <p>
+      上传一个可复制文字的 PDF 文件，选择总结类型，系统会提交到 n8n。后续版本会自动提取 PDF 文本并生成总结报告。
+    </p>
+
+    <div class="form-section">
+      <label for="pdfFile">选择 PDF 文件：</label>
+      <input
+        id="pdfFile"
+        type="file"
+        accept="application/pdf"
+        onchange="updateFileInfo()"
+      />
+
+      <div class="file-info" id="fileInfo">当前未选择文件。</div>
+      <p class="hint">第一版建议上传可复制文字的 PDF，暂不处理扫描版 PDF。</p>
+    </div>
+
+    <div class="form-section">
+      <label for="summaryType">总结类型：</label>
+      <select id="summaryType">
+        <option value="学习笔记">学习笔记</option>
+        <option value="核心摘要">核心摘要</option>
+        <option value="概念提取">概念提取</option>
+        <option value="行动建议">行动建议</option>
+        <option value="资料拆解">资料拆解</option>
+      </select>
+    </div>
+
+    <button id="submitBtn" onclick="submitToN8n()">上传并总结</button>
+    <button class="secondary-btn" onclick="clearAll()">清空文件</button>
+
+    <p id="message">等待提交。</p>
+
+    <div id="resultBox">
+      <h2>PDF 总结报告</h2>
+
+      <button class="secondary-btn" onclick="copySummary()">
+        复制总结报告
+      </button>
+
+      <div id="summaryText"></div>
+      <div class="meta" id="summaryMeta"></div>
+    </div>
+  </div>
+
+  <script>
+    let isSubmitting = false;
+    let latestSummary = "";
+
+    function updateFileInfo() {
+      const fileInput = document.getElementById("pdfFile");
+      const fileInfo = document.getElementById("fileInfo");
+      const file = fileInput.files[0];
+
+      if (!file) {
+        fileInfo.innerText = "当前未选择文件。";
+        return;
+      }
+
+      const sizeMB = (file.size / 1024 / 1024).toFixed(2);
+      fileInfo.innerText =
+        "已选择文件：" + file.name + " | 大小：" + sizeMB + " MB";
+    }
+
+    async function submitToN8n() {
+      const submitBtn = document.getElementById("submitBtn");
+      const messageEl = document.getElementById("message");
+      const resultBox = document.getElementById("resultBox");
+      const summaryText = document.getElementById("summaryText");
+      const summaryMeta = document.getElementById("summaryMeta");
+
+      const fileInput = document.getElementById("pdfFile");
+      const file = fileInput.files[0];
+      const summaryType = document.getElementById("summaryType").value;
+
+      if (isSubmitting) {
+        messageEl.innerText = "正在处理中，请不要重复点击。";
+        return;
+      }
+
+      if (!file) {
+        messageEl.innerText = "请先选择一个 PDF 文件。";
+        return;
+      }
+
+      if (file.type !== "application/pdf") {
+        messageEl.innerText = "当前只支持 PDF 文件。";
+        return;
+      }
+
+      const maxSizeMB = 10;
+      if (file.size > maxSizeMB * 1024 * 1024) {
+        messageEl.innerText = "文件太大，建议先上传 10MB 以内的 PDF。";
+        return;
+      }
+
+      const webhookUrl = "http://localhost:18080/webhook/pdf-summary";
+
+      isSubmitting = true;
+      submitBtn.disabled = true;
+      submitBtn.innerText = "处理中...";
+      resultBox.style.display = "none";
+      summaryText.innerText = "";
+      summaryMeta.innerText = "";
+      latestSummary = "";
+
+      const sizeMB = (file.size / 1024 / 1024).toFixed(2);
+
+      messageEl.innerText =
+        "正在上传到 n8n...\n" +
+        "文件名：" + file.name + "\n" +
+        "文件大小：" + sizeMB + " MB\n" +
+        "总结类型：" + summaryType;
+
+      try {
+        const formData = new FormData();
+        formData.append("pdf_file", file);
+        formData.append("summary_type", summaryType);
+        formData.append("token", "n8n_long_summary_2026_eric");
+
+        const response = await fetch(webhookUrl, {
+          method: "POST",
+          body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.status === "done") {
+          latestSummary = data.result || "";
+
+          messageEl.innerText = "PDF 总结完成。";
+          resultBox.style.display = "block";
+          summaryText.innerText = latestSummary || "没有返回总结内容。";
+
+          summaryMeta.innerText =
+            "总结类型：" + (data.summary_type || summaryType) +
+            " | 文件名：" + (data.file_name || file.name);
+        } else {
+          messageEl.innerText =
+            "处理失败。\n错误类型：" + (data.error_type || "unknown") +
+            "\n提示：" + (data.message || "");
+        }
+      } catch (error) {
+        messageEl.innerText =
+          "请求失败。请检查 n8n 是否运行、Webhook URL 是否正确，或 workflow 是否返回 JSON。";
+
+        console.error("请求失败：", error);
+      }
+
+      setTimeout(function () {
+        isSubmitting = false;
+        submitBtn.disabled = false;
+        submitBtn.innerText = "上传并总结";
+      }, 3000);
+    }
+
+    async function copySummary() {
+      const messageEl = document.getElementById("message");
+
+      if (!latestSummary) {
+        messageEl.innerText = "当前没有可复制的总结报告。";
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(latestSummary);
+        messageEl.innerText = "总结报告已复制到剪贴板。";
+      } catch (error) {
+        messageEl.innerText = "复制失败，请手动选择总结报告复制。";
+        console.error("复制失败：", error);
+      }
+    }
+
+    function clearAll() {
+      document.getElementById("pdfFile").value = "";
+      document.getElementById("summaryType").value = "学习笔记";
+      document.getElementById("fileInfo").innerText = "当前未选择文件。";
+      document.getElementById("message").innerText = "已清空，可以选择新的 PDF 文件。";
+      document.getElementById("resultBox").style.display = "none";
+      document.getElementById("summaryText").innerText = "";
+      document.getElementById("summaryMeta").innerText = "";
+      latestSummary = "";
+    }
+  </script>
+</body>
+</html>
